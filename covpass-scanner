@@ -291,7 +291,7 @@ def run_interactive(camera, certs):
                     cv2.imshow("Camera", image)
                     parsed = output_covid_cert_data(data, certs)
                     if parsed['verified'][1]:
-                        image[:] = (0, 255, 0)
+                        image[:] = cv2.imread("success.png")
                         print(">> VALID")
                         mixer.init()
                         mixer.music.load("complete.oga")
@@ -299,7 +299,7 @@ def run_interactive(camera, certs):
                         while mixer.music.get_busy():
                             continue
                     else:
-                        image[:] = (0, 0, 255)
+                        image[:] = cv2.imread("failure.png")
                         print(">> NOT VALID")
                         mixer.init()
                         mixer.music.load("dialog-error.oga")
@@ -307,15 +307,13 @@ def run_interactive(camera, certs):
                     fn = f"{parsed['fn'][1]}"
                     gn = f"{parsed['gn'][1]}"
                     if with_ft:
-                        ft.putText(image, fn, org=(100, 200), fontHeight=60, color=(0,  0, 0), thickness=-1, line_type=cv2.LINE_AA, bottomLeftOrigin=True)
-                        ft.putText(image, gn, org=(100, 300), fontHeight=60, color=(0,  0, 0), thickness=-1, line_type=cv2.LINE_AA, bottomLeftOrigin=True)
+                        ft.putText(image, fn, org=(60, 40), fontHeight=40, color=(0, 0, 0), thickness=-1, line_type=cv2.LINE_AA, bottomLeftOrigin=True)
+                        ft.putText(image, gn, org=(60, 100), fontHeight=40, color=(0, 0, 0), thickness=-1, line_type=cv2.LINE_AA, bottomLeftOrigin=True)
                     else:
-                        cv2.putText(image, fn, (100, 200), cv2.FONT_HERSHEY_PLAIN, 3, (0, 0, 0), 2)
-                        cv2.putText(image, gn, (100, 300), cv2.FONT_HERSHEY_PLAIN, 3, (0, 0, 0), 2)
-                    # cv2.imshow("Camera", image)
-                    piscreen_img = cv2.resize(image, (320, 240))
-                    cv2.imshow("Camera", piscreen_img)
-                    cv2.waitKey(200)
+                        cv2.putText(image, fn, (60, 40), cv2.FONT_HERSHEY_PLAIN, 3, (0, 0, 0), 2)
+                        cv2.putText(image, gn, (60, 100), cv2.FONT_HERSHEY_PLAIN, 3, (0, 0, 0), 2)
+                    cv2.imshow("Camera", image)
+                    cv2.waitKey(1000)
                 #except:
                 #    log.info("no certificate in QR code")
         elif len(barcodes) == 0:
