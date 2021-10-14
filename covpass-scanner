@@ -259,8 +259,10 @@ def run_interactive(camera, certs):
     import cv2
     from pygame import mixer
     cap = cv2.VideoCapture(camera)
-    #cap.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, 1920)
-    #cap.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, 1080)
+    cv2.namedWindow("Camera", cv2.WND_PROP_FULLSCREEN)
+    cv2.setWindowProperty("Camera", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
     try:
         ft = cv2.freetype.createFreeType2()
         ft.loadFontData(fontFileName='LiberationSans-Bold.ttf', id=0)
@@ -310,7 +312,9 @@ def run_interactive(camera, certs):
                     else:
                         cv2.putText(image, fn, (100, 200), cv2.FONT_HERSHEY_PLAIN, 3, (0, 0, 0), 2)
                         cv2.putText(image, gn, (100, 300), cv2.FONT_HERSHEY_PLAIN, 3, (0, 0, 0), 2)
-                    cv2.imshow("Camera", image)
+                    # cv2.imshow("Camera", image)
+                    piscreen_img = cv2.resize(image, (320, 240))
+                    cv2.imshow("Camera", piscreen_img)
                     cv2.waitKey(200)
                 #except:
                 #    log.info("no certificate in QR code")
