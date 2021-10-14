@@ -257,7 +257,7 @@ def print_cert_data(d) -> dict:
 
 def run_interactive(camera, certs):
     import cv2
-    from playsound import playsound
+    from pygame import mixer
     cap = cv2.VideoCapture(camera)
     #cap.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, 1920)
     #cap.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, 1080)
@@ -291,11 +291,17 @@ def run_interactive(camera, certs):
                     if parsed['verified'][1]:
                         image[:] = (0, 255, 0)
                         print(">> VALID")
-                        playsound("dialog-information.oga", block=False)
+                        mixer.init()
+                        mixer.music.load("complete.oga")
+                        mixer.music.play()
+                        while mixer.music.get_busy():
+                            continue
                     else:
                         image[:] = (0, 0, 255)
                         print(">> NOT VALID")
-                        playsound("dialog-error.oga", block=False)
+                        mixer.init()
+                        mixer.music.load("dialog-error.oga")
+                        mixer.music.play()
                     fn = f"{parsed['fn'][1]}"
                     gn = f"{parsed['gn'][1]}"
                     if with_ft:
