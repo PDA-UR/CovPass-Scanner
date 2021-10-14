@@ -216,10 +216,12 @@ def flatten(dic):
     items = {}
     for item in dic.keys():
         if type(dic[item]) == dict:
-            items |= flatten(dic[item])
+            for k, v in flatten(dic[item]).items():
+                items[k] = v
         elif type(dic[item]) == list:
             for d in dic[item]:
-                items |= flatten(d)
+                for k, v in flatten(d).items():
+                    items[k] = v
         else:
             items[item] = dic[item]
     return items
