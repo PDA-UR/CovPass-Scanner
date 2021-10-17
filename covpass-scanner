@@ -257,19 +257,17 @@ def print_cert_data(d) -> dict:
 
 def run_interactive(camera, certs):
     import cv2
+    import PIL.Image, PIL.ImageDraw, PIL.ImageFont
+    import numpy as np
     from pygame import mixer
     cap = cv2.VideoCapture(camera)
     cv2.namedWindow("Camera", cv2.WND_PROP_FULLSCREEN)
     cv2.setWindowProperty("Camera", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
-    try:
-        ft = cv2.freetype.createFreeType2()
-        ft.loadFontData(fontFileName='LiberationSans-Bold.ttf', id=0)
-        with_ft = True
-    except (AttributeError, cv2.error) as e:
-        print(e)
-        with_ft = False
+    font = PIL.ImageFont.truetype("fonts/Roboto-Regular.ttf", 40)
+    success_img = PIL.Image.open("success.png")
+    failure_img = PIL.Image.open("failure.png")
 
     ret, image = cap.read() # generate image with appropriate size
     barcodes_in_prev_frame = 0
@@ -290,28 +288,28 @@ def run_interactive(camera, certs):
                     image[:] = (0, 255, 255)
                     cv2.imshow("Camera", image)
                     parsed = output_covid_cert_data(data, certs)
+                    fn = f"{parsed['fn'][1]}"
+                    gn = f"{parsed['gn'][1]}"
                     if parsed['verified'][1]:
-                        image[:] = cv2.imread("success.png")
                         print(">> VALID")
+                        txt_img = success_img
                         mixer.init()
                         mixer.music.load("complete.oga")
                         mixer.music.play()
-                        while mixer.music.get_busy():
-                            continue
                     else:
-                        image[:] = cv2.imread("failure.png")
                         print(">> NOT VALID")
+                        txt_img = failure_img
                         mixer.init()
                         mixer.music.load("dialog-error.oga")
                         mixer.music.play()
-                    fn = f"{parsed['fn'][1]}"
-                    gn = f"{parsed['gn'][1]}"
-                    if with_ft:
-                        ft.putText(image, fn, org=(60, 40), fontHeight=40, color=(0, 0, 0), thickness=-1, line_type=cv2.LINE_AA, bottomLeftOrigin=True)
-                        ft.putText(image, gn, org=(60, 100), fontHeight=40, color=(0, 0, 0), thickness=-1, line_type=cv2.LINE_AA, bottomLeftOrigin=True)
-                    else:
-                        cv2.putText(image, fn, (60, 40), cv2.FONT_HERSHEY_PLAIN, 3, (0, 0, 0), 2)
-                        cv2.putText(image, gn, (60, 100), cv2.FONT_HERSHEY_PLAIN, 3, (0, 0, 0), 2)
+                    draw = PIL.ImageDraw.Draw(txt_img)
+                    width = max(
+                        draw.textsize(fn, font=font),
+                        draw.textsize(gn, font=font)
+                    )[0]
+                    draw.text(xy=((320 - width) / 2, 10), text=fn, fill=(0, 0, 0), font=font)
+                    draw.text(xy=((320 - width) / 2, 60), text=gn, fill=(0, 0, 0), font=font)
+                    image[:] = cv2.cvtColor(np.array(txt_img), cv2.COLOR_RGB2BGR)
                     cv2.imshow("Camera", image)
                     cv2.waitKey(1000)
                 #except:
