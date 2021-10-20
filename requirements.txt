@@ -10,7 +10,7 @@ cose==0.9.dev8
 cryptography==3.4.7
 cryptojwt==1.5.2
 opencv-python==4.5.3.56
-opencv-contrib-python=4.5.3.56
+opencv-contrib-python==4.5.3.56
 ecdsa==0.17.0
 idna==3.2
 numpy==1.21.1
