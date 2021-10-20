@@ -266,9 +266,6 @@ def run_interactive(camera, certs):
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
     font = PIL.ImageFont.truetype("fonts/Roboto-Regular.ttf", 40)
-    success_img = PIL.Image.open("img/success.png")
-    failure_img = PIL.Image.open("img/failure.png")
-
     ret, image = cap.read() # generate image with appropriate size
     barcodes_in_prev_frame = 0
     running = True
@@ -292,26 +289,26 @@ def run_interactive(camera, certs):
                     gn = f"{parsed['gn'][1]}"
                     if parsed['verified'][1]:
                         print(">> VALID")
-                        txt_img = success_img
+                        background = PIL.Image.open("img/success.png")
                         mixer.init()
                         mixer.music.load("sounds/complete.oga")
                         mixer.music.play()
                     else:
                         print(">> NOT VALID")
-                        txt_img = failure_img
+                        background = PIL.Image.open("img/failure.png")
                         mixer.init()
                         mixer.music.load("sounds/dialog-error.oga")
                         mixer.music.play()
-                    draw = PIL.ImageDraw.Draw(txt_img)
+                    draw = PIL.ImageDraw.Draw(background)
                     width = max(
                         draw.textsize(fn, font=font),
                         draw.textsize(gn, font=font)
                     )[0]
                     draw.text(xy=((320 - width) / 2, 10), text=fn, fill=(0, 0, 0), font=font)
                     draw.text(xy=((320 - width) / 2, 60), text=gn, fill=(0, 0, 0), font=font)
-                    image[:] = cv2.cvtColor(np.array(txt_img), cv2.COLOR_RGB2BGR)
+                    image[:] = cv2.cvtColor(np.array(background), cv2.COLOR_RGB2BGR)
                     cv2.imshow("Camera", image)
-                    cv2.waitKey(1000)
+                    cv2.waitKey(2000)
                 #except:
                 #    log.info("no certificate in QR code")
         elif len(barcodes) == 0:
