@@ -2,24 +2,13 @@
 
 Python script for scanning, decoding, and verifying the EU Covid-19 vaccine certificate, as [specified by the EU](https://ec.europa.eu/health/ehealth/covid-19_en).
 
-This script takes an image with a QR code of a vaccine certificate as
-the parameter and will show the certificate's content.
-It will also validate the digital signature.
-
-This version also offers a live mode where EUDCCs can be scanned via a webcam. 
+CovPass-Scanner scans the QR code of a vaccine certificate using a webcam. 
 Certificate validity and name of the owner are displayed on-screen. 
 This allows for quickly verifying the certificates of visitors.
 
+The script is heavily based on [hannob/vacdec](https://github.com/hannob/vacdec) (data extraction) and [HQJaTu/vacdec](https://github.com/HQJaTu/vacdec/tree/signature-verification) (signature verification).
+Check out these repositories for more information on the innner workings.
 
-
-
-The code is very short and should provide an easy way to understand
-how these certificates are encoded:
-
-* The QR code encodes a string starting with "HC1:".
-* The string following "HC1:" is base45 encoded.
-* Decoding the base45 leads to zlib-compressed data.
-* Decompression leads to a CBOR Web Token structure.
 
 ## Setup
 
@@ -31,7 +20,8 @@ You will need:
   * For Mac OS X, it can be installed via `brew install zbar`
   * Debian systems via `apt install libzbar0`. [Source](https://pypi.org/project/pyzbar/)
   * Fedora / Red Hat `dnf install zbar`
-* opencv for webcam mode (optional)
+* opencv for webcam mode 
+* pygame for playing sound
 
 Install them via your distribution or via pip:
 
@@ -58,7 +48,7 @@ course PNG and JPG.
 
 ## Example run:
 ```bash
-$ ./vacdec samples/Sweden-2.png
+$ ./vacdec --image-file samples/Sweden-2.png
 2021-08-05 19:33:39,927 [INFO ]  COVID certificate signed with X.509 certificate.
 2021-08-05 19:33:39,927 [INFO ]  X.509 in DER form has SHA-256 beginning with: 5f74910195c5cecb
 2021-08-05 19:36:24,800 [INFO ]  Found the key from DB!
@@ -95,8 +85,7 @@ $ ./vacdec samples/Sweden-2.png
 }
 ```
 
-
-# EU Digital COVID Certificate
+# More information on the EU Digital COVID Certificate
 (Note: formerly known as Digital Green Certificate)
 
 ## Specifications
@@ -120,4 +109,4 @@ https://github.com/eu-digital-green-certificates/dgc-testdata
 
 Written by [Hanno Böck](https://hboeck.de/).
 Signature verification by [Jari Turkia](https://blog.hqcodeshop.fi/).
-Minor fixes, decoding of Digital Green Certificate Values Sets, and webcam mode by [Raphael Wimmer](https://www.winterwind.org).
+Minor fixes, decoding of Digital Green Certificate Values Sets, and webcam mode by [Raphael Wimmer](https://www.winterwind.org) and Thomas Fischer.
