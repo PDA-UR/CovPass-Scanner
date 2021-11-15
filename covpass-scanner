@@ -216,10 +216,12 @@ def flatten(dic):
     items = {}
     for item in dic.keys():
         if type(dic[item]) == dict:
-            items |= flatten(dic[item])
+            for k, v in flatten(dic[item]).items():
+                items[k] = v
         elif type(dic[item]) == list:
             for d in dic[item]:
-                items |= flatten(d)
+                for k, v in flatten(d).items():
+                    items[k] = v
         else:
             items[item] = dic[item]
     return items
@@ -255,18 +257,15 @@ def print_cert_data(d) -> dict:
 
 def run_interactive(camera, certs):
     import cv2
-    from playsound import playsound
+    import PIL.Image, PIL.ImageDraw, PIL.ImageFont
+    import numpy as np
+    from pygame import mixer
     cap = cv2.VideoCapture(camera)
-    #cap.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH, 1920)
-    #cap.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT, 1080)
-    try:
-        ft = cv2.freetype.createFreeType2()
-        ft.loadFontData(fontFileName='LiberationSans-Bold.ttf', id=0)
-        with_ft = True
-    except (AttributeError, cv2.error) as e:
-        print(e)
-        with_ft = False
-
+    cv2.namedWindow("Camera", cv2.WND_PROP_FULLSCREEN)
+    cv2.setWindowProperty("Camera", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
+    font = PIL.ImageFont.truetype("fonts/Roboto-Regular.ttf", 40)
     ret, image = cap.read() # generate image with appropriate size
     barcodes_in_prev_frame = 0
     running = True
@@ -286,24 +285,30 @@ def run_interactive(camera, certs):
                     image[:] = (0, 255, 255)
                     cv2.imshow("Camera", image)
                     parsed = output_covid_cert_data(data, certs)
-                    if parsed['verified'][1]:
-                        image[:] = (0, 255, 0)
-                        print(">> VALID")
-                        playsound("dialog-information.oga", block=False)
-                    else:
-                        image[:] = (0, 0, 255)
-                        print(">> NOT VALID")
-                        playsound("dialog-error.oga", block=False)
                     fn = f"{parsed['fn'][1]}"
                     gn = f"{parsed['gn'][1]}"
-                    if with_ft:
-                        ft.putText(image, fn, org=(100, 200), fontHeight=60, color=(0,  0, 0), thickness=-1, line_type=cv2.LINE_AA, bottomLeftOrigin=True)
-                        ft.putText(image, gn, org=(100, 300), fontHeight=60, color=(0,  0, 0), thickness=-1, line_type=cv2.LINE_AA, bottomLeftOrigin=True)
+                    if parsed['verified'][1]:
+                        print(">> VALID")
+                        background = PIL.Image.open("img/success.png")
+                        mixer.init()
+                        mixer.music.load("sounds/complete.oga")
+                        mixer.music.play()
                     else:
-                        cv2.putText(image, fn, (100, 200), cv2.FONT_HERSHEY_PLAIN, 3, (0, 0, 0), 2)
-                        cv2.putText(image, gn, (100, 300), cv2.FONT_HERSHEY_PLAIN, 3, (0, 0, 0), 2)
+                        print(">> NOT VALID")
+                        background = PIL.Image.open("img/failure.png")
+                        mixer.init()
+                        mixer.music.load("sounds/dialog-error.oga")
+                        mixer.music.play()
+                    draw = PIL.ImageDraw.Draw(background)
+                    width = max(
+                        draw.textsize(fn, font=font),
+                        draw.textsize(gn, font=font)
+                    )[0]
+                    draw.text(xy=((320 - width) / 2, 10), text=fn, fill=(0, 0, 0), font=font)
+                    draw.text(xy=((320 - width) / 2, 60), text=gn, fill=(0, 0, 0), font=font)
+                    image[:] = cv2.cvtColor(np.array(background), cv2.COLOR_RGB2BGR)
                     cv2.imshow("Camera", image)
-                    cv2.waitKey(200)
+                    cv2.waitKey(2000)
                 #except:
                 #    log.info("no certificate in QR code")
         elif len(barcodes) == 0:

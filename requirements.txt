@@ -10,13 +10,14 @@ cose==0.9.dev8
 cryptography==3.4.7
 cryptojwt==1.5.2
 opencv-python==4.5.3.56
-opencv-contrib-python=4.5.3.56
+opencv-contrib-python==4.5.3.56
 ecdsa==0.17.0
 idna==3.2
 numpy==1.21.1
 oscrypto==1.2.1
 Pillow==8.3.1
 pycparser==2.20
+pygame==2.0.2
 pyzbar==0.1.8
 readerwriterlock==1.0.8
 requests==2.26.0
