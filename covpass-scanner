@@ -12,6 +12,7 @@ import pprint
 from datetime import datetime
 
 import PIL.Image
+from PIL.ImageOps import pad
 import pyzbar.pyzbar
 
 import json
@@ -255,6 +256,8 @@ def print_cert_data(d) -> dict:
 
 # OpenCV interactive mode ##########################
 
+CAM_WIDTH, CAM_HEIGHT = 640, 480
+
 def run_interactive(camera, certs):
     import cv2
     import PIL.Image, PIL.ImageDraw, PIL.ImageFont
@@ -263,8 +266,8 @@ def run_interactive(camera, certs):
     cap = cv2.VideoCapture(camera)
     cv2.namedWindow("Camera", cv2.WND_PROP_FULLSCREEN)
     cv2.setWindowProperty("Camera", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAM_WIDTH)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAM_HEIGHT)
     font = PIL.ImageFont.truetype("fonts/Roboto-Regular.ttf", 40)
     ret, image = cap.read() # generate image with appropriate size
     barcodes_in_prev_frame = 0
@@ -275,7 +278,7 @@ def run_interactive(camera, certs):
         # debouncing
         if len(barcodes) == 1 and barcodes_in_prev_frame == 0:
             data = barcodes[0].data.decode()
-            if data == "SESAM":
+            if data == "SESAM": # stub for implementing a debug barcode
                 text = f"SESAM"
                 image[:] = (255, 255, 0)
                 cv2.putText(image, text, (10, 10), cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 0), 1)
@@ -289,13 +292,14 @@ def run_interactive(camera, certs):
                     gn = f"{parsed['gn'][1]}"
                     if parsed['verified'][1]:
                         print(">> VALID")
-                        background = PIL.Image.open("img/success.png")
+                        # TODO: fix root bug where the loaded image was not overwritten, which required Thomas to reload the image all the time
+                        background = pad(PIL.Image.open("img/success.png"), (CAM_WIDTH, CAM_HEIGHT))
                         mixer.init()
                         mixer.music.load("sounds/complete.oga")
                         mixer.music.play()
                     else:
                         print(">> NOT VALID")
-                        background = PIL.Image.open("img/failure.png")
+                        background = pad(PIL.Image.open("img/failure.png"), (CAM_WIDTH, CAM_HEIGHT))
                         mixer.init()
                         mixer.music.load("sounds/dialog-error.oga")
                         mixer.music.play()
@@ -304,8 +308,9 @@ def run_interactive(camera, certs):
                         draw.textsize(fn, font=font),
                         draw.textsize(gn, font=font)
                     )[0]
-                    draw.text(xy=((320 - width) / 2, 10), text=fn, fill=(0, 0, 0), font=font)
-                    draw.text(xy=((320 - width) / 2, 60), text=gn, fill=(0, 0, 0), font=font)
+                    # fixme: make drawing code independent of screen size
+                    draw.text(xy=((CAM_WIDTH - width) / 2, 10), text=fn, fill=(0, 0, 0), font=font)
+                    draw.text(xy=((CAM_WIDTH - width) / 2, 60), text=gn, fill=(0, 0, 0), font=font)
                     image[:] = cv2.cvtColor(np.array(background), cv2.COLOR_RGB2BGR)
                     cv2.imshow("Camera", image)
                     cv2.waitKey(2000)
