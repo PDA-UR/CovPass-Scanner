@@ -21,7 +21,6 @@ from cryptojwt import utils as cjwt_utils
 
 DEFAULT_CERTIFICATE_DB_JSON = 'certs/Digital_Green_Certificate_Signing_Keys.json'
 
-
 class CovpassScanner:
 
     def __init__(self, certs=DEFAULT_CERTIFICATE_DB_JSON):
@@ -37,8 +36,9 @@ class CovpassScanner:
         console_handler.setFormatter(log_formatter)
         console_handler.propagate = False
         logging.getLogger().addHandler(console_handler)
-        self.log.setLevel(logging.DEBUG)
-        # log.setLevel(logging.INFO)
+        self.log.setLevel(logging.ERROR)
+        # self.log.setLevel(logging.DEBUG)
+        # self.log.setLevel(logging.INFO)
 
     def process_frame(self, frame):
         barcodes = pyzbar.pyzbar.decode(frame)
@@ -70,7 +70,6 @@ class CovpassScanner:
 
         # Uncompress the data
         decompressed = zlib.decompress(zlibdata)
-
         self.log.debug(decompressed)
 
         # decode COSE message (no signature verification done yet)
@@ -152,9 +151,9 @@ class CovpassScanner:
         return cose_msg.verify_signature()
 
     def print_cert_data(self, d) -> dict:
-        print(f"Issuer: {d[1]}")
-        print(f"Issue Date: {datetime.fromtimestamp(int(d[6]))}")
-        print(f"Expiration Date: {datetime.fromtimestamp(int(d[4]))}")
+        # print(f"Issuer: {d[1]}")
+        # print(f"Issue Date: {datetime.fromtimestamp(int(d[6]))}")
+        # print(f"Expiration Date: {datetime.fromtimestamp(int(d[4]))}")
         data = d[-260][1]
         data = self.flatten(data)
         data['verified'] = d['verified']
