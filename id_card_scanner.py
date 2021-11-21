@@ -1,10 +1,13 @@
 # -*- coding: UTF-8 -*-
 
 import sys
+import time
+
 import cv2
 from pytesseract import pytesseract
 
 PYTESSERACT_LANGUAGE = 'deu'
+
 
 class IdCardScanner:
 
@@ -13,16 +16,19 @@ class IdCardScanner:
 
     def scan_for_id_cards(self, frame, data):
 
-        # This script is currently optimised for german ID cards.
-        if data['co'] != 'DE':
-            print('Certificate not issued in germany, therefore probably no german passport')
-
-        modified_frame = self.__prepare_frame(frame)
         variants_dict = self.__generate_variants_dict(data)
+
+        # This script is currently optimised for german ID cards.
+        if data['co'][1] != 'DE':
+            print('Certificate not issued in Germany, therefore probably also no german passport')
+
+        # Step 1
+        modified_frame = self.__prepare_frame(frame)
 
         match_found = self.__find_matches(modified_frame, variants_dict)
 
         print('Match found:', match_found)
+        return match_found
 
     # Do some magic to improve the readability of text in the frame
     # TODO: Improve this and maybe offer multiple options
@@ -36,9 +42,15 @@ class IdCardScanner:
 
         return threshold
 
+    def __get_text_from_frame(self, frame):
+        raw_text = pytesseract.image_to_string(frame, lang=PYTESSERACT_LANGUAGE)
+
+        print(raw_text)
+        return raw_text
+
     # Perform OCR on the frame and compare the found text with the strings from the dict
     def __find_matches(self, frame, variants_dict):
-        raw_text = pytesseract.image_to_string(frame, lang=PYTESSERACT_LANGUAGE)
+        raw_text = self.__get_text_from_frame(frame)
 
         first_name_found = False
         last_name_found = False
@@ -68,9 +80,9 @@ class IdCardScanner:
     # -> Different variants of first name, last name and date of birth
     def __generate_variants_dict(self, data):
         variants_dict = {
-            'first_name': [data['gn'], data['gnt'], data['gn'][0] + data['gnt'][1:].lower(), data['gn'].upper()],
-            'last_name': [data['fn'], data['fnt'], data['fn'][0] + data['fnt'][1:].lower(), data['fn'].upper()],
-            'dob': self.__generate_possible_dob_variants(data['dob'])
+            'first_name': [data['gn'][1], data['gnt'][1], data['gn'][1][0] + data['gnt'][1][1:].lower(), data['gn'][1].upper()],
+            'last_name': [data['fn'][1], data['fnt'][1], data['fn'][1][0] + data['fnt'][1][1:].lower(), data['fn'][1].upper()],
+            'dob': self.__generate_possible_dob_variants(data['dob'][1])
         }
 
         return variants_dict
@@ -96,31 +108,30 @@ class IdCardScanner:
 
 # EVERYTHING BELOW IS JUST FOR TESTING THE SCRIPT
 
-
-def main():
-    id_card_scanner = IdCardScanner()
-
-    CAMERA = '/dev/video2'
-    CAM_WIDTH, CAM_HEIGHT = 1280, 720
-    TEST_DATA = {'co': 'DE', 'dob': '2000-12-01', 'fn': 'Müller', 'gn': 'Max', 'fnt': 'MUELLER', 'gnt': 'MAX'}
-
-    cap = cv2.VideoCapture(CAMERA)
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAM_WIDTH)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAM_HEIGHT)
-    while True:
-        ret, frame = cap.read()
-
-        if frame is not None:
-            cv2.imshow('raw frame', frame)
-            id_card_scanner.scan_for_id_cards(frame, TEST_DATA)
-
-        key = cv2.waitKey(1)
-
-        # Press esc or 'q' to close the image window
-        if key & 0xFF == ord('q') or key == 27:
-            cv2.destroyAllWindows()
-            sys.exit(0)
-
-
-if __name__ == '__main__':
-    main()
+# def main():
+#     id_card_scanner = IdCardScanner()
+#
+#     CAMERA = '/dev/video2'
+#     CAM_WIDTH, CAM_HEIGHT = 1280, 720
+#     TEST_DATA = {'co': 'DE', 'dob': '2000-12-01', 'fn': 'Müller', 'gn': 'Max', 'fnt': 'MUELLER', 'gnt': 'MAX'}
+#
+#     cap = cv2.VideoCapture(CAMERA)
+#     cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAM_WIDTH)
+#     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAM_HEIGHT)
+#     while True:
+#         ret, frame = cap.read()
+#
+#         if frame is not None:
+#             cv2.imshow('raw frame', frame)
+#             id_card_scanner.scan_for_id_cards(frame, TEST_DATA)
+#
+#         key = cv2.waitKey(1)
+#
+#         # Press esc or 'q' to close the image window
+#         if key & 0xFF == ord('q') or key == 27:
+#             cv2.destroyAllWindows()
+#             sys.exit(0)
+#
+#
+# if __name__ == '__main__':
+#     main()
