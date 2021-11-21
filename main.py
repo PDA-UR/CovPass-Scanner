@@ -82,8 +82,8 @@ class Main:
 
         # cv2.namedWindow("Camera", cv2.WND_PROP_FULLSCREEN)
         # cv2.setWindowProperty("Camera", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-        self.font_title = PIL.ImageFont.truetype("fonts/Roboto-Regular.ttf", 80)
-        self.font_subtitle = PIL.ImageFont.truetype("fonts/Roboto-Regular.ttf", 50)
+        self.font_title = PIL.ImageFont.truetype("fonts/Roboto-Regular.ttf", 45)
+        self.font_subtitle = PIL.ImageFont.truetype("fonts/Roboto-Regular.ttf", 40)
 
         self.invalid_certificate_image = cv2.imread("img/failure.png")
         self.successful_verification_image = cv2.imread("img/success.png")
@@ -177,12 +177,16 @@ class Main:
         draw = PIL.ImageDraw.Draw(pil_image)
 
         title_width = max(draw.textsize(title, font=self.font_title), draw.textsize(title, font=self.font_title))[0]
+        title_height = max(draw.textsize(title, font=self.font_title), draw.textsize(title, font=self.font_title))[1]
         subtitle_width = max(draw.textsize(title, font=self.font_subtitle), draw.textsize(title, font=self.font_subtitle))[0]
 
         # TODO: make drawing code independent of screen size
-        draw.text(xy=((int((frame.shape[1] - title_width) / 2)), 10), text=title, fill=(0, 0, 0), font=self.font_title)
-        draw.text(xy=((int((frame.shape[1] - subtitle_width) / 2)), frame.shape[0] - 100), text=subtitle,
-                  fill=(0, 0, 0), font=self.font_subtitle)
+        title_x = (int((frame.shape[1] - title_width) / 2))
+        title_y = int((BORDER_PERCENTAGE * frame.shape[0] - title_height) / 2)
+        subtitle_x = int((frame.shape[1] - subtitle_width) / 2)
+        subtitle_y = frame.shape[0] - 100
+        draw.text(xy=(title_x, title_y), text=title, fill=(0, 0, 0), font=self.font_title)
+        draw.text(xy=(subtitle_x, subtitle_y), text=subtitle, fill=(0, 0, 0), font=self.font_subtitle)
 
         frame[:] = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
 
