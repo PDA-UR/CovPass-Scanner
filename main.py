@@ -17,8 +17,8 @@ from id_card_scanner import IdCardScanner
 
 DEFAULT_CERTIFICATE_DB_JSON = 'certs/Digital_Green_Certificate_Signing_Keys.json'
 
-CAMERA_ID = 7
-CAM_WIDTH, CAM_HEIGHT = 640, 480
+CAMERA_ID = 2
+CAM_WIDTH, CAM_HEIGHT = 1280, 720
 
 TIME_WAIT_AFTER_CERTIFICATE_FOUND_SEC = 3
 TIME_WAIT_FOR_ID_CARD_SEC = 30
@@ -27,6 +27,8 @@ TIME_SHOW_INVALID_CERTIFICATE_MESSAGE_SEC = 10
 TIME_SHOW_SUCCESSFUL_VERIFICATION_MESSAGE_SEC = 5
 
 BORDER_PERCENTAGE = 0.2
+TEXT_COLOR = (255, 0, 0)
+
 
 class Main:
 
@@ -105,13 +107,9 @@ class Main:
             if found_certificate:
                 already_scanned_certificate = self.active_certificate_data == parsed_covid_cert_data
                 if not already_scanned_certificate:  # Only continue if it is new certificate
-                    #frame[:] = (0, 255, 255)
-                    #cv2.imshow("Camera", frame)
-
                     if is_valid:
                         self.active_certificate_data = parsed_covid_cert_data
                         self.last_certificate_found_timestamp = now
-
                     else:
                         self.invalid_certificate_found = True
 
@@ -156,10 +154,10 @@ class Main:
         # Add small black border around camera preview
         frame = cv2.copyMakeBorder(frame, 3, 3, 3, 3, cv2.BORDER_CONSTANT, value=(0, 0, 0))
         # Add large white border
-        frame = cv2.copyMakeBorder(frame,
-                                   int(BORDER_PERCENTAGE * frame.shape[1]), int(BORDER_PERCENTAGE * frame.shape[1]),
-                                   int(BORDER_PERCENTAGE * frame.shape[0]), int(BORDER_PERCENTAGE * frame.shape[0]),
-                                   cv2.BORDER_CONSTANT, value=(255, 255, 255))
+        # frame = cv2.copyMakeBorder(frame,
+        #                            int(BORDER_PERCENTAGE * frame.shape[1]), int(BORDER_PERCENTAGE * frame.shape[1]),
+        #                            int(BORDER_PERCENTAGE * frame.shape[0]), int(BORDER_PERCENTAGE * frame.shape[0]),
+        #                            cv2.BORDER_CONSTANT, value=(255, 255, 255))
 
         return frame
 
@@ -185,8 +183,8 @@ class Main:
         title_y = int((BORDER_PERCENTAGE * frame.shape[0] - title_height) / 2)
         subtitle_x = int((frame.shape[1] - subtitle_width) / 2)
         subtitle_y = frame.shape[0] - 100
-        draw.text(xy=(title_x, title_y), text=title, fill=(0, 0, 0), font=self.font_title)
-        draw.text(xy=(subtitle_x, subtitle_y), text=subtitle, fill=(0, 0, 0), font=self.font_subtitle)
+        draw.text(xy=(title_x, title_y), text=title, fill=TEXT_COLOR, font=self.font_title)
+        draw.text(xy=(subtitle_x, subtitle_y), text=subtitle, fill=TEXT_COLOR, font=self.font_subtitle)
 
         frame[:] = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
 
