@@ -80,6 +80,11 @@ class IdCardScanner:
     def __prepare_frame(frame):
         # TODO: Find better values and remove magic numbers
         threshold = cv2.adaptiveThreshold(frame, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 41, 16)
+
+        # Erode frame
+        kernel = np.ones((2, 2), np.uint8)
+        threshold = cv2.erode(threshold, kernel)
+
         # cv2.imshow('Adaptive Gaussian Thresh', threshold)
         return threshold
 
