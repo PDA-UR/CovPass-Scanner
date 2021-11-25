@@ -1,5 +1,4 @@
 # -*- coding: UTF-8 -*-
-import datetime
 import sys
 import time
 
@@ -9,6 +8,13 @@ from pytesseract import pytesseract
 import imutils
 
 PYTESSERACT_LANGUAGE = 'deu'
+
+# Check if at least X% of the center of the image are edges
+# (Many edges -> Probably text -> High possibility that an ID card is present)
+MIN_NUM_EDGES_PERCENTAGE = 1.5
+
+USE_MOVEMENT_DETECTOR = True
+USE_LEVENSHTEIN = True
 
 
 class IdCardScanner:
@@ -22,19 +28,19 @@ class IdCardScanner:
     def scan_for_id_cards(self, frame, data):
 
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
         frame_center = self.__extract_center_of_frame(frame)
 
-        movement = self.__detect_movement(frame_center, 40, 100)
+        if USE_MOVEMENT_DETECTOR:
+            movement = self.__detect_movement(frame_center, 40, 300)
 
-        now = time.time_ns() // 1_000_000
-        print('movement', movement)
-        if movement:
-            self.last_movement_timestamp = now
-            return False
+            now = time.time_ns() // 1_000_000
+            if movement:
+                print('Movement detected')
+                self.last_movement_timestamp = now
+                return False
 
-        if now - self.last_movement_timestamp < 500:
-            return False
+            if now - self.last_movement_timestamp < 400:
+                return False
 
         edges_present = self.__detect_edges(frame_center)
 
@@ -47,7 +53,6 @@ class IdCardScanner:
         if data['co'][1] != 'DE':
             print('Certificate not issued in Germany, therefore probably also no german passport')
 
-        # Step 1
         modified_frame = self.__prepare_frame(frame)
 
         match_found = self.__find_matches(modified_frame, variants_dict)
@@ -55,16 +60,15 @@ class IdCardScanner:
         print('Match found:', match_found)
         return match_found
 
-    def __detect_edges(self, frame):
+    @staticmethod
+    def __detect_edges(frame):
         blurred = cv2.GaussianBlur(frame, (3, 3), 0)
         canny = cv2.Canny(blurred, 50, 130)
-        cv2.imshow("Canny Edge Map", canny)
+        # cv2.imshow("Canny Edge Map", canny)
 
         edges_percentage = cv2.countNonZero(canny) / (frame.shape[0] * frame.shape[1]) * 100
 
-        MIN_NUM_EDGES_PERCENTAGE = 2
-
-        print('Edges: {}%'.format(edges_percentage))
+        print('Edges Percentage: {}%'.format(edges_percentage))
 
         if edges_percentage > MIN_NUM_EDGES_PERCENTAGE:
             return True
@@ -72,29 +76,28 @@ class IdCardScanner:
 
     # Do some magic to improve the readability of text in the frame
     # TODO: Improve this and maybe offer multiple options
-    def __prepare_frame(self, frame):
-
+    @staticmethod
+    def __prepare_frame(frame):
         # TODO: Find better values and remove magic numbers
-        threshold = cv2.adaptiveThreshold(frame, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 199, 17)
-
-        cv2.imshow('Adaptive Gaussian Thresh', threshold)
-
+        threshold = cv2.adaptiveThreshold(frame, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 41, 16)
+        # cv2.imshow('Adaptive Gaussian Thresh', threshold)
         return threshold
 
-    def __get_text_from_frame(self, frame):
+    @staticmethod
+    def __get_text_from_frame(frame):
         # Windows Workaround
-        # pytesseract.tesseract_cmd = 'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
+        pytesseract.tesseract_cmd = 'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
 
         raw_text = pytesseract.image_to_string(frame, lang=PYTESSERACT_LANGUAGE)
         raw_text = ' '.join(raw_text.split())  # Remove new lines and double spaces
-
         print(raw_text)
-
         return raw_text
 
     # Perform OCR on the frame and compare the found text with the strings from the dict
     def __find_matches(self, frame, variants_dict):
         raw_text = self.__get_text_from_frame(frame)
+
+        detected_word_list = raw_text.split(' ')
 
         first_name_found = False
         last_name_found = False
@@ -102,23 +105,68 @@ class IdCardScanner:
 
         for first_name in variants_dict['first_name']:
             if first_name in raw_text:
-                # print('First name matches!')
                 first_name_found = True
                 break
 
+        if not first_name_found and USE_LEVENSHTEIN:
+            first_name_found = self.match_witch_levenshtein(variants_dict['first_name'], detected_word_list)
+
         for last_name in variants_dict['last_name']:
             if last_name in raw_text:
-                # print('Last name matches!')
                 last_name_found = True
                 break
 
+        if not last_name_found and USE_LEVENSHTEIN:
+            last_name_found = self.match_witch_levenshtein(variants_dict['last_name'], detected_word_list)
+
         for dob in variants_dict['dob']:
             if dob in raw_text:
-                # print('Date of birth matches!')
                 dob_found = True
                 break
 
+        if not dob_found and USE_LEVENSHTEIN:
+            dob_found = self.match_witch_levenshtein(variants_dict['dob'], detected_word_list)
+
         return first_name_found and last_name_found and dob_found
+
+    def match_witch_levenshtein(self, variants, detected_word_list):
+        for variant in variants:
+            for word in detected_word_list:
+                if len(word) == len(variant):
+                    word_distance = self.levenshtein_distance(word, variant)
+                    # If just one char is different
+                    if word_distance == 1:
+                        print('{} vs. {} -> Just one char is different'.format(variant, word, word_distance))
+                        return True
+        return False
+
+    # Based on: https://blog.paperspace.com/implementing-levenshtein-distance-word-autocomplete-autocorrect/
+    def levenshtein_distance(self, token1, token2):
+        distances = np.zeros((len(token1) + 1, len(token2) + 1))
+
+        for t1 in range(len(token1) + 1):
+            distances[t1][0] = t1
+
+        for t2 in range(len(token2) + 1):
+            distances[0][t2] = t2
+
+        for t1 in range(1, len(token1) + 1):
+            for t2 in range(1, len(token2) + 1):
+                if token1[t1 - 1] == token2[t2 - 1]:
+                    distances[t1][t2] = distances[t1 - 1][t2 - 1]
+                else:
+                    a = distances[t1][t2 - 1]
+                    b = distances[t1 - 1][t2]
+                    c = distances[t1 - 1][t2 - 1]
+
+                    if a <= b and a <= c:
+                        distances[t1][t2] = a + 1
+                    elif b <= a and b <= c:
+                        distances[t1][t2] = b + 1
+                    else:
+                        distances[t1][t2] = c + 1
+
+        return distances[len(token1)][len(token2)]
 
     # Generate a dict of strings that we expect to find in the text on the ID card
     # -> Different variants of first name, last name and date of birth
@@ -133,7 +181,8 @@ class IdCardScanner:
 
     # The date of birth (dob) can appear in different variants on passports (dd.mm.yyyy, dd.mm.yy, yymmdd, ...)
     # This method generates a list of all possible variants
-    def __generate_possible_dob_variants(self, dob):
+    @staticmethod
+    def __generate_possible_dob_variants(dob):
 
         dob_variants = [dob]
 
@@ -149,7 +198,8 @@ class IdCardScanner:
 
         return dob_variants
 
-    def __extract_center_of_frame(self, frame):
+    @staticmethod
+    def __extract_center_of_frame(frame):
         width = frame.shape[1]
         height = frame.shape[0]
         center_x = int(width/2)
@@ -157,7 +207,7 @@ class IdCardScanner:
         size = int((0.5 * height) / 2)
         frame = frame[center_y - size:center_y+size, center_x - size:center_x+size]
 
-        cv2.imshow('center', frame)
+        # cv2.imshow('center', frame)
 
         return frame
 
@@ -198,7 +248,7 @@ class IdCardScanner:
                     break
 
         except Exception as e:
-            print('[ImageAnalyzer]: Error on detecting movement:', e)
+            print('Error on detecting movement:', e)
 
         self.last_frame = frame
 
@@ -211,8 +261,8 @@ def main():
     id_card_scanner = IdCardScanner()
 
     CAMERA = 2
-    CAM_WIDTH, CAM_HEIGHT = 640, 480
-    TEST_DATA = {} # INSERT HERE
+    CAM_WIDTH, CAM_HEIGHT = 1280, 720
+    TEST_DATA = {}  # INSERT HERE
 
     cap = cv2.VideoCapture(CAMERA)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAM_WIDTH)
