@@ -24,10 +24,19 @@ TIME_WAIT_AFTER_CERTIFICATE_FOUND_SEC = 3
 TIME_WAIT_FOR_ID_CARD_SEC = 30
 
 TIME_SHOW_INVALID_CERTIFICATE_MESSAGE_SEC = 10
-TIME_SHOW_SUCCESSFUL_VERIFICATION_MESSAGE_SEC = 5
+TIME_SHOW_SUCCESSFUL_VERIFICATION_MESSAGE_SEC = 3
 
-BORDER_PERCENTAGE = 0.2
-TEXT_COLOR = (255, 0, 0)
+BORDER_PERCENTAGE = 0.15
+TEXT_COLOR = (255, 255, 255)
+BORDER_COLOR = (0, 0, 0)
+PREVIEW_BORDER_COLOR = (120, 120, 120)
+
+FONT_SIZE = 90
+
+OUTPUT_DISPLAY_RESOLUTION = (1024, 600)
+
+STEP_1_TEXT = 'Step 1: Scan COVPASS Certificate:'
+STEP_2_TEXT = 'Step 2: Scan ID card:'
 
 
 class Main:
@@ -82,15 +91,22 @@ class Main:
         self.covpass_scanner = CovpassScanner()
         self.id_card_scanner = IdCardScanner()
 
-        # cv2.namedWindow("Camera", cv2.WND_PROP_FULLSCREEN)
-        # cv2.setWindowProperty("Camera", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-        self.font_title = PIL.ImageFont.truetype("fonts/Roboto-Regular.ttf", 45)
-        self.font_subtitle = PIL.ImageFont.truetype("fonts/Roboto-Regular.ttf", 40)
+        cv2.namedWindow("Camera", cv2.WND_PROP_FULLSCREEN)
+        cv2.setWindowProperty("Camera", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        self.font_title = PIL.ImageFont.truetype("fonts/Roboto-Regular.ttf", FONT_SIZE)
+        self.font_subtitle = PIL.ImageFont.truetype("fonts/Roboto-Regular.ttf", FONT_SIZE)
 
-        self.invalid_certificate_image = cv2.imread("img/failure.png")
-        self.successful_verification_image = cv2.imread("img/success.png")
-
+        self.__prepare_images()
         self.run_interactive()
+
+    def __prepare_images(self):
+        self.invalid_certificate_image = cv2.imread("img/failure.png")
+        self.invalid_certificate_image = cv2.resize(self.invalid_certificate_image, (OUTPUT_DISPLAY_RESOLUTION[1], OUTPUT_DISPLAY_RESOLUTION[1]))
+        self.invalid_certificate_image = cv2.copyMakeBorder(self.invalid_certificate_image, 0, 0, int((OUTPUT_DISPLAY_RESOLUTION[0] - OUTPUT_DISPLAY_RESOLUTION[1]) / 2), int((OUTPUT_DISPLAY_RESOLUTION[0] - OUTPUT_DISPLAY_RESOLUTION[1]) / 2), cv2.BORDER_CONSTANT, value=(255, 255, 255))
+
+        self.successful_verification_image = cv2.imread("img/success.png")
+        self.successful_verification_image = cv2.resize(self.successful_verification_image, (OUTPUT_DISPLAY_RESOLUTION[1], OUTPUT_DISPLAY_RESOLUTION[1]))
+        self.successful_verification_image = cv2.copyMakeBorder(self.successful_verification_image, 0, 0, int((OUTPUT_DISPLAY_RESOLUTION[0] - OUTPUT_DISPLAY_RESOLUTION[1]) / 2), int((OUTPUT_DISPLAY_RESOLUTION[0] - OUTPUT_DISPLAY_RESOLUTION[1]) / 2), cv2.BORDER_CONSTANT, value=(255, 255, 255))
 
     def run_interactive(self):
         while True:
@@ -98,6 +114,8 @@ class Main:
             if frame is None:
                 print('No frame from camera')
                 continue
+
+            frame = cv2.flip(frame, -1)
 
             now = time.time()
 
@@ -108,6 +126,8 @@ class Main:
                 already_scanned_certificate = self.active_certificate_data == parsed_covid_cert_data
                 if not already_scanned_certificate:  # Only continue if it is new certificate
                     if is_valid:
+                        # print(parsed_covid_cert_data)
+                        self.on_valid_certificate()
                         self.active_certificate_data = parsed_covid_cert_data
                         self.last_certificate_found_timestamp = now
                     else:
@@ -129,10 +149,10 @@ class Main:
             self.update_ui(frame)
 
             if self.invalid_certificate_found:
-                self.on_invalid_certificate(frame)
+                self.on_invalid_certificate()
                 key = cv2.waitKey(TIME_SHOW_INVALID_CERTIFICATE_MESSAGE_SEC * 1000)  # sec to ms
             elif self.id_card_matches_certificate:
-                self.on_successful_verification(frame)
+                self.on_successful_verification()
                 key = cv2.waitKey(TIME_SHOW_SUCCESSFUL_VERIFICATION_MESSAGE_SEC * 1000)  # sec to ms
             else:
                 key = cv2.waitKey(1)
@@ -143,30 +163,31 @@ class Main:
                 sys.exit(0)
 
     def update_ui(self, frame):
-        old_shape = frame.shape  # Remember to resize later after adding borders to the frame
+        # old_shape = frame.shape  # Remember to resize later after adding borders to the frame
 
         frame = self.add_borders_to_frame(frame)
         frame = self.add_text_to_frame(frame)
-        frame = cv2.resize(frame, (old_shape[1], old_shape[0]))
+        # frame = cv2.resize(frame, (old_shape[1], old_shape[0]))
+        frame = cv2.resize(frame, OUTPUT_DISPLAY_RESOLUTION)
         cv2.imshow("Camera", frame)
 
     def add_borders_to_frame(self, frame):
         # Add small black border around camera preview
-        frame = cv2.copyMakeBorder(frame, 3, 3, 3, 3, cv2.BORDER_CONSTANT, value=(0, 0, 0))
+        frame = cv2.copyMakeBorder(frame, 3, 3, 3, 3, cv2.BORDER_CONSTANT, value=PREVIEW_BORDER_COLOR)
         # Add large white border
-        # frame = cv2.copyMakeBorder(frame,
-        #                            int(BORDER_PERCENTAGE * frame.shape[1]), int(BORDER_PERCENTAGE * frame.shape[1]),
-        #                            int(BORDER_PERCENTAGE * frame.shape[0]), int(BORDER_PERCENTAGE * frame.shape[0]),
-        #                            cv2.BORDER_CONSTANT, value=(255, 255, 255))
+        frame = cv2.copyMakeBorder(frame,
+                                   2 * int(BORDER_PERCENTAGE * frame.shape[0]), 0,
+                                   int(BORDER_PERCENTAGE * frame.shape[1]), int(BORDER_PERCENTAGE * frame.shape[1]),
+                                   cv2.BORDER_CONSTANT, value=BORDER_COLOR)
 
         return frame
 
     def add_text_to_frame(self, frame):
-        title = 'Step 1: Scan COVPASS Certificate:'
+        title = STEP_1_TEXT
         subtitle = ''
 
         if self.active_certificate_data is not None:
-            title = 'Step 2: Scan ID card:'
+            title = STEP_2_TEXT
             last_name = self.active_certificate_data['fn'][1]
             first_name = self.active_certificate_data['gn'][1]
             subtitle = 'Name: {} {}'.format(first_name, last_name)
@@ -196,22 +217,27 @@ class Main:
         self.id_card_matches_certificate = False
         self.invalid_certificate_found = False
 
-    def on_successful_verification(self, frame):
+    def on_successful_verification(self):
         mixer.init()
         mixer.music.load("sounds/complete.oga")
         mixer.music.play()
 
-        output = cv2.resize(self.successful_verification_image, (frame.shape[1], frame.shape[0]))
+        output = cv2.resize(self.successful_verification_image, OUTPUT_DISPLAY_RESOLUTION)
         cv2.imshow('Camera', output)
 
         self.reset()
 
-    def on_invalid_certificate(self, frame):
+    def on_valid_certificate(self):
+        mixer.init()
+        mixer.music.load("sounds/message.oga")
+        mixer.music.play()
+
+    def on_invalid_certificate(self):
         mixer.init()
         mixer.music.load("sounds/dialog-error.oga")
         mixer.music.play()
 
-        output = cv2.resize(self.invalid_certificate_image, (frame.shape[1], frame.shape[0]))
+        output = cv2.resize(self.invalid_certificate_image, OUTPUT_DISPLAY_RESOLUTION)
         cv2.imshow('Camera', output)
 
         self.reset()
