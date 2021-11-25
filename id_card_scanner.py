@@ -86,7 +86,7 @@ class IdCardScanner:
     @staticmethod
     def __get_text_from_frame(frame):
         # Windows Workaround
-        pytesseract.tesseract_cmd = 'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
+        # pytesseract.tesseract_cmd = 'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
 
         raw_text = pytesseract.image_to_string(frame, lang=PYTESSERACT_LANGUAGE)
         raw_text = ' '.join(raw_text.split())  # Remove new lines and double spaces
