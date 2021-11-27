@@ -29,6 +29,7 @@ TIME_SHOW_SUCCESSFUL_VERIFICATION_MESSAGE_SEC = 3
 
 BORDER_PERCENTAGE = 0.15
 TEXT_COLOR = (255, 255, 255)
+SUBTEXT_COLOR = (0, 0, 0)
 BORDER_COLOR = (0, 0, 0)
 PREVIEW_BORDER_COLOR = (120, 120, 120)
 
@@ -108,13 +109,14 @@ class Main:
         self.run_interactive()
 
     def __prepare_images(self):
+        short_side = min(CAM_HEIGHT, CAM_WIDTH)
         self.invalid_certificate_image = cv2.imread("img/failure.png")
-        self.invalid_certificate_image = cv2.resize(self.invalid_certificate_image, (OUTPUT_DISPLAY_RESOLUTION[1], OUTPUT_DISPLAY_RESOLUTION[1]))
-        self.invalid_certificate_image = cv2.copyMakeBorder(self.invalid_certificate_image, 0, 0, int((OUTPUT_DISPLAY_RESOLUTION[0] - OUTPUT_DISPLAY_RESOLUTION[1]) / 2), int((OUTPUT_DISPLAY_RESOLUTION[0] - OUTPUT_DISPLAY_RESOLUTION[1]) / 2), cv2.BORDER_CONSTANT, value=(255, 255, 255))
+        self.invalid_certificate_image = cv2.resize(self.invalid_certificate_image, (short_side, short_side))
+        self.invalid_certificate_image = cv2.copyMakeBorder(self.invalid_certificate_image, 0, 0, int((CAM_WIDTH - CAM_HEIGHT) / 2), int((CAM_WIDTH - CAM_HEIGHT) / 2), cv2.BORDER_CONSTANT, value=(255, 255, 255))
 
         self.successful_verification_image = cv2.imread("img/success.png")
-        self.successful_verification_image = cv2.resize(self.successful_verification_image, (OUTPUT_DISPLAY_RESOLUTION[1], OUTPUT_DISPLAY_RESOLUTION[1]))
-        self.successful_verification_image = cv2.copyMakeBorder(self.successful_verification_image, 0, 0, int((OUTPUT_DISPLAY_RESOLUTION[0] - OUTPUT_DISPLAY_RESOLUTION[1]) / 2), int((OUTPUT_DISPLAY_RESOLUTION[0] - OUTPUT_DISPLAY_RESOLUTION[1]) / 2), cv2.BORDER_CONSTANT, value=(255, 255, 255))
+        self.successful_verification_image = cv2.resize(self.successful_verification_image, (short_side, short_side))
+        self.successful_verification_image = cv2.copyMakeBorder(self.successful_verification_image, 0, 0, int((CAM_WIDTH - CAM_HEIGHT) / 2), int((CAM_WIDTH - CAM_HEIGHT) / 2), cv2.BORDER_CONSTANT, value=(255, 255, 255))
 
     def run_interactive(self):
         previous_scan_timestamp = 0
@@ -167,7 +169,6 @@ class Main:
             elif self.active_certificate_data and not self.id_verification:
                 self.on_successful_verification()
                 key = cv2.waitKey(TIME_SHOW_SUCCESSFUL_VERIFICATION_MESSAGE_SEC * 1000)  # sec to ms
-
             elif self.id_card_matches_certificate:
                 self.on_successful_verification()
                 key = cv2.waitKey(TIME_SHOW_SUCCESSFUL_VERIFICATION_MESSAGE_SEC * 1000)  # sec to ms
@@ -182,11 +183,11 @@ class Main:
     def update_ui(self, frame):
         # old_shape = frame.shape  # Remember to resize later after adding borders to the frame
         if self.active_certificate_data and not self.id_verification:
-            frame = cv2.resize(self.successful_verification_image, OUTPUT_DISPLAY_RESOLUTION)
+            frame = self.successful_verification_image
         elif self.id_card_matches_certificate:
-            frame = cv2.resize(self.successful_verification_image, OUTPUT_DISPLAY_RESOLUTION)
+            frame = self.successful_verification_image
         elif self.invalid_certificate_found:
-            frame = cv2.resize(self.invalid_certificate_image, OUTPUT_DISPLAY_RESOLUTION)
+            frame = self.invalid_certificate_image
 
         frame = self.add_borders_to_frame(frame)
         frame = self.add_text_to_frame(frame)
@@ -218,18 +219,16 @@ class Main:
 
         pil_image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
         draw = PIL.ImageDraw.Draw(pil_image)
-
         title_width = max(draw.textsize(title, font=self.font_title), draw.textsize(title, font=self.font_title))[0]
         title_height = max(draw.textsize(title, font=self.font_title), draw.textsize(title, font=self.font_title))[1]
         subtitle_width = max(draw.textsize(title, font=self.font_subtitle), draw.textsize(title, font=self.font_subtitle))[0]
-
         # TODO: make drawing code independent of screen size
         title_x = (int((frame.shape[1] - title_width) / 2))
         title_y = int((BORDER_PERCENTAGE * frame.shape[0] - title_height) / 2)
-        subtitle_x = int((frame.shape[1] - subtitle_width) / 2)
+        subtitle_x = int((frame.shape[1] - subtitle_width))
         subtitle_y = frame.shape[0] - 100
         draw.text(xy=(title_x, title_y), text=title, fill=TEXT_COLOR, font=self.font_title)
-        draw.text(xy=(subtitle_x, subtitle_y), text=subtitle, fill=TEXT_COLOR, font=self.font_subtitle)
+        draw.text(xy=(subtitle_x, subtitle_y), text=subtitle, fill=SUBTEXT_COLOR, font=self.font_subtitle)
 
         frame[:] = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
 
