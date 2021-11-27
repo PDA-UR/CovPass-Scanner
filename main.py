@@ -22,6 +22,7 @@ CAM_WIDTH, CAM_HEIGHT = 1280, 720
 
 TIME_WAIT_AFTER_CERTIFICATE_FOUND_SEC = 3
 TIME_WAIT_FOR_ID_CARD_SEC = 30
+TIME_WAIT_BETWEEN_SCANS_SEC = 0.100
 
 TIME_SHOW_INVALID_CERTIFICATE_MESSAGE_SEC = 10
 TIME_SHOW_SUCCESSFUL_VERIFICATION_MESSAGE_SEC = 3
@@ -47,19 +48,26 @@ class Main:
     invalid_certificate_found = False
 
     def __init__(self):
-        # parser = argparse.ArgumentParser(description='EU COVID Vaccination Passport Verifier')
+        parser = argparse.ArgumentParser(description='EU COVID Vaccination Passport Verifier')
         # parser.add_argument('--image-file', metavar="IMAGE-FILE",
         #                     help='Image to read QR-code from')
         # parser.add_argument('--raw-string', metavar="RAW-STRING",
         #                     help='Contents of the QR-code as string')
         # parser.add_argument('image_file_positional', metavar="IMAGE-FILE", nargs="?",
         #                     help='Image to read QR-code from')
-        # parser.add_argument('--certificate-db-json-file', default=DEFAULT_CERTIFICATE_DB_JSON,
-        #                     help="Default: {0}".format(DEFAULT_CERTIFICATE_DB_JSON))
-        # parser.add_argument('--camera', metavar="CAMERA-FILE",
-        #                     help='camera path')
-        #
-        # args = parser.parse_args()
+        parser.add_argument('--certificate-db-json-file', default=DEFAULT_CERTIFICATE_DB_JSON,
+                            help="Default: {0}".format(DEFAULT_CERTIFICATE_DB_JSON))
+        parser.add_argument('--camera', metavar="CAMERA-FILE",
+                            help='camera path')
+        parser.add_argument('--id-verification', action='store_true',
+                            help='Verify vaccination certificate with personal ID')
+        
+        args = parser.parse_args()
+        self.id_verification = args.id_verification
+        if args.camera:
+            self.camera_device = args.camera
+        else:
+            self.camera_device = CAMERA_ID
         #
         # covid_cert_data = None
         # image_file = None
@@ -84,7 +92,7 @@ class Main:
         # log.debug("Cert data: '{0}'".format(covid_cert_data))
         # output_covid_cert_data(covid_cert_data, args.certificate_db_json_file)
 
-        self.capture = cv2.VideoCapture(CAMERA_ID)
+        self.capture = cv2.VideoCapture(self.camera_device)
         self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, CAM_WIDTH)
         self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, CAM_HEIGHT)
 
@@ -109,6 +117,7 @@ class Main:
         self.successful_verification_image = cv2.copyMakeBorder(self.successful_verification_image, 0, 0, int((OUTPUT_DISPLAY_RESOLUTION[0] - OUTPUT_DISPLAY_RESOLUTION[1]) / 2), int((OUTPUT_DISPLAY_RESOLUTION[0] - OUTPUT_DISPLAY_RESOLUTION[1]) / 2), cv2.BORDER_CONSTANT, value=(255, 255, 255))
 
     def run_interactive(self):
+        previous_scan_timestamp = 0
         while True:
             ret, frame = self.capture.read()
             if frame is None:
@@ -120,20 +129,24 @@ class Main:
             now = time.time()
 
             # Check if a certificate is found in the frame
-            found_certificate, is_valid, parsed_covid_cert_data = self.covpass_scanner.process_frame(frame)
+            found_certificate, is_valid, parsed_covid_cert_data = None, None, None
+            if previous_scan_timestamp + TIME_WAIT_BETWEEN_SCANS_SEC < now:
+                found_certificate, is_valid, parsed_covid_cert_data = self.covpass_scanner.process_frame(frame)
+                previous_scan_timestamp = time.time()
 
             if found_certificate:
                 already_scanned_certificate = self.active_certificate_data == parsed_covid_cert_data
                 if not already_scanned_certificate:  # Only continue if it is new certificate
                     if is_valid:
                         # print(parsed_covid_cert_data)
-                        self.on_valid_certificate()
+                        # self.on_valid_certificate()
                         self.active_certificate_data = parsed_covid_cert_data
                         self.last_certificate_found_timestamp = now
+                        
                     else:
                         self.invalid_certificate_found = True
 
-            else:  # Only check for ID card if no certificate is found in the current frame
+            elif self.id_verification:  # Only check for ID card if no certificate is found in the current frame
                 if self.active_certificate_data is not None:
 
                     # Wait at least XX seconds after certificate has been detected in frame
@@ -151,6 +164,10 @@ class Main:
             if self.invalid_certificate_found:
                 self.on_invalid_certificate()
                 key = cv2.waitKey(TIME_SHOW_INVALID_CERTIFICATE_MESSAGE_SEC * 1000)  # sec to ms
+            elif self.active_certificate_data and not self.id_verification:
+                self.on_successful_verification()
+                key = cv2.waitKey(TIME_SHOW_SUCCESSFUL_VERIFICATION_MESSAGE_SEC * 1000)  # sec to ms
+
             elif self.id_card_matches_certificate:
                 self.on_successful_verification()
                 key = cv2.waitKey(TIME_SHOW_SUCCESSFUL_VERIFICATION_MESSAGE_SEC * 1000)  # sec to ms
@@ -164,6 +181,12 @@ class Main:
 
     def update_ui(self, frame):
         # old_shape = frame.shape  # Remember to resize later after adding borders to the frame
+        if self.active_certificate_data and not self.id_verification:
+            frame = cv2.resize(self.successful_verification_image, OUTPUT_DISPLAY_RESOLUTION)
+        elif self.id_card_matches_certificate:
+            frame = cv2.resize(self.successful_verification_image, OUTPUT_DISPLAY_RESOLUTION)
+        elif self.invalid_certificate_found:
+            frame = cv2.resize(self.invalid_certificate_image, OUTPUT_DISPLAY_RESOLUTION)
 
         frame = self.add_borders_to_frame(frame)
         frame = self.add_text_to_frame(frame)
@@ -186,8 +209,9 @@ class Main:
         title = STEP_1_TEXT
         subtitle = ''
 
-        if self.active_certificate_data is not None:
-            title = STEP_2_TEXT
+        if self.active_certificate_data:
+            if self.id_verification:
+                title = STEP_2_TEXT
             last_name = self.active_certificate_data['fn'][1]
             first_name = self.active_certificate_data['gn'][1]
             subtitle = 'Name: {} {}'.format(first_name, last_name)
@@ -217,13 +241,21 @@ class Main:
         self.id_card_matches_certificate = False
         self.invalid_certificate_found = False
 
+        # Hotfix hack
+        # without multithreading, the code will block and use buffered frames from several seconds ago
+        # when image analysis finishes.
+        # this results in analysing phantom barcodes, that are no longer physically present
+        # restarting the camera clears the buffer.
+        # TODO: implement this properly
+        self.capture.release()
+        self.capture = cv2.VideoCapture(self.camera_device)
+        self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, CAM_WIDTH)
+        self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, CAM_HEIGHT)
+
     def on_successful_verification(self):
         mixer.init()
         mixer.music.load("sounds/complete.oga")
         mixer.music.play()
-
-        output = cv2.resize(self.successful_verification_image, OUTPUT_DISPLAY_RESOLUTION)
-        cv2.imshow('Camera', output)
 
         self.reset()
 
@@ -236,9 +268,6 @@ class Main:
         mixer.init()
         mixer.music.load("sounds/dialog-error.oga")
         mixer.music.play()
-
-        output = cv2.resize(self.invalid_certificate_image, OUTPUT_DISPLAY_RESOLUTION)
-        cv2.imshow('Camera', output)
 
         self.reset()
 
