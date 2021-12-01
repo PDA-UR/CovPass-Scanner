@@ -131,5 +131,6 @@ Minor fixes, decoding of Digital Green Certificate Values Sets, webcam mode and 
 # Related Projects
 
 - CovPass-Scanner is based on [hannob/vacdec](https://github.com/hannob/vacdec) and [HQJaTu/vacdec](https://github.com/HQJaTu/vacdec/tree/signature-verification)
+- [lucadentella/raspberry-dgc](https://github.com/lucadentella/raspberry-dgc) - client-server solution consisting of a Raspberry Pi running Python code and a web server implementing signature verification and business rules
 - [panzi/verify-ehc](https://github.com/panzi/verify-ehc) - a simple Python script to decode and verify an European Health Certificate QR-code (also supports download of trust lists).
 - There are a few commercial standalone scanners for vaccination certificates available online ([1](https://www.ebay.de/itm/284535211514))
