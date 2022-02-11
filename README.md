@@ -10,6 +10,23 @@ The script is heavily based on [hannob/vacdec](https://github.com/hannob/vacdec)
 Check out these repositories for more information on the innner workings.
 
 
+## Features
+
+- Scans QR code of EU Green Pass / vaccination certificate via a webcam
+- Verifies that the cerificate has been signed by a valid official entity
+- Optionally scans an ID card (see separate branch at the moment) and checks whether data from certificate matches data on ID card
+- Displays checkmark and plays sound if certificate was verified successfully
+- Can be run on a Raspberry Pi 
+- When using a fixed-focus camera, check happens much faster than with mobile apps
+
+## Limitations
+
+- Currently uses an old list of valid signing keys that may or may not work for your audience
+- Not all possible exceptions are handled at the moment. The program may crash on unexpected data. 
+- ID card check uses OCR and is rather slow due to pytesseract. 
+- ID card check does not check the validity of the card - it just compares data from the ID card to that from the vaccination certificate
+- No persistent logging of certificate checks
+
 ## Setup
 
 You will need:
@@ -107,6 +124,13 @@ https://github.com/eu-digital-green-certificates/dgc-testdata
 
 # Authors
 
-Written by [Hanno Böck](https://hboeck.de/).
-Signature verification by [Jari Turkia](https://blog.hqcodeshop.fi/).
-Minor fixes, decoding of Digital Green Certificate Values Sets, and webcam mode by [Raphael Wimmer](https://www.winterwind.org) and Thomas Fischer.
+Original code written by [Hanno Böck](https://hboeck.de/).
+Signature verification added by [Jari Turkia](https://blog.hqcodeshop.fi/).
+Minor fixes, decoding of Digital Green Certificate Values Sets, webcam mode and ID card scanning by [Raphael Wimmer](https://hci.ur.de/people/raphael_wimmer), Thomas Fischer and Vitus Maierhöfer.
+
+# Related Projects
+
+- CovPass-Scanner is based on [hannob/vacdec](https://github.com/hannob/vacdec) and [HQJaTu/vacdec](https://github.com/HQJaTu/vacdec/tree/signature-verification)
+- [lucadentella/raspberry-dgc](https://github.com/lucadentella/raspberry-dgc) - client-server solution consisting of a Raspberry Pi running Python code and a web server implementing signature verification and business rules
+- [panzi/verify-ehc](https://github.com/panzi/verify-ehc) - a simple Python script to decode and verify an European Health Certificate QR-code (also supports download of trust lists).
+- There are a few commercial standalone scanners for vaccination certificates available online ([1](https://www.ebay.de/itm/284535211514))
